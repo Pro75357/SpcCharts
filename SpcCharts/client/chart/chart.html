@@ -1,0 +1,17 @@
+<template name="Chart">
+    <div class="row">
+        <div class="col-sm-3">
+            <h5>Paste Excel data here</h5>
+            <form id="dataForm">
+                <input type="file" id="file"/>
+            <input type="submit" class="btn btn-primary" value="Go"/>
+            </form>
+
+        </div>
+        <div class="col-sm-9">
+            <canvas id="chartCanvas" height="400" width="800"></canvas>
+        </div>
+    </div>
+
+</template>
+
