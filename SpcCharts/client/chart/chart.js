@@ -1,8 +1,12 @@
 import Chart from "chart.js";
-import { ReactiveVar } from 'meteor/reactive-var';
-
+import { Mongo } from 'meteor/mongo';
+// we're going to do a lot with this data so let's put it in a miniMongo variable for easy fetching
+export const DataCollection = new Mongo.Collection(null);
 
 Template.Chart.onRendered( function(){
+
+
+    // Just build a simple chart on rendering for display, also builds our chart object
     let canvas = document.getElementById('chartCanvas').getContext("2d");
 
     let datasets = [];
@@ -92,14 +96,13 @@ Template.Chart.onRendered( function(){
 });
 
 Template.Chart.events({
-   'submit #dataForm': function(event){
+   'change #file': function(event){
        event.preventDefault();
         import { MyChart } from './chart.js'
-
-       Papa.parse(event.target.file.files[0], {
+       Papa.parse(event.target.files[0], {
            dynamicTyping: true,
            header: true,
-           complete(results, file) {
+           complete(results) {
 
                // update chart with new data
                //console.log(results);
@@ -110,7 +113,11 @@ Template.Chart.events({
                            t: results.data[x].date,
                            y: results.data[x].values
                        };
+                       // we will both store results in our initial chartData
                        chartData.push(value);
+                       // as well as our Mongo collection
+                       DataCollection.insert(value)
+
                    }
                }
 
@@ -125,14 +132,41 @@ Template.Chart.events({
                };
 
                // Now, we need to calculate a mean and graph this as a straight line down the middle:
-               let meanData = {
+               // to do this, we can chart the value on both the max and min date
+               let maxDate = DataCollection.findOne({},{sort: {t: -1}}).t;
+               console.log("max: "+maxDate);
+               let minDate = DataCollection.findOne({},{sort: {t: 1}}).t;
+               console.log("Min: "+minDate);
+               // use math and a for loop to figure out the mean
+               let data =DataCollection.find().fetch();
+               // add all up, then divide by total
+               let add = 0;
+               for (let x in data) {
+                   add += data[x].y
+               }
+               // total is just the size of the array
+               let dataMean = add/(DataCollection.find().count());
+               console.log("mean: "+dataMean);
+
+               let meanDataPoints = [{
+                   t: minDate,
+                   y: dataMean
+               }, {
+                   t: maxDate,
+                   y: dataMean
+               }];
+
+
+
+
+               let meanDataObject = {
                    label: "median",
                    backgroundColor: 'transparent',
                    borderColor: 'grey',
                    borderWidth: 2,
                    // pointBackgroundColor: 'black',
                    pointStyle: 'line',
-                   data: chartData // from above
+                   data: meanDataPoints // from above
                };
 
 
@@ -141,7 +175,7 @@ Template.Chart.events({
                 MyChart.config.data.datasets = [];
 
                MyChart.config.data.datasets.push(variableData);
-               MyChart.config.data.datasets.push(meanData);
+               MyChart.config.data.datasets.push(meanDataObject);
                console.log(MyChart);
                MyChart.update();
            }
@@ -150,3 +184,9 @@ Template.Chart.events({
 
    }
 });
+
+Template.Chart.helpers({
+    chartData(){
+        return JSON.stringify(DataCollection.find().fetch(), null, 2);
+    }
+})

@@ -1,10 +1,10 @@
 <template name="Chart">
     <div class="row">
         <div class="col-sm-3">
-            <h5>Paste Excel data here</h5>
+            <h5>Upload 2-column CSV file with headers "date" and "values"</h5>
+            <h5>dates should be in <a href="https://momentjs.com/">moment.js</a> parse-able format</h5>
             <form id="dataForm">
                 <input type="file" id="file"/>
-            <input type="submit" class="btn btn-primary" value="Go"/>
             </form>
 
         </div>
@@ -12,6 +12,7 @@
             <canvas id="chartCanvas" height="400" width="800"></canvas>
         </div>
     </div>
+    <pre class="collapse">{{chartData}}</pre>
 
 </template>
 
