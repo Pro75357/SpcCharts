@@ -99,6 +99,7 @@ Template.Chart.events({
    'change #file': function(event){
        event.preventDefault();
         import { MyChart } from './chart.js'
+       DataCollection.remove({})
        Papa.parse(event.target.files[0], {
            dynamicTyping: true,
            header: true,
@@ -138,6 +139,7 @@ Template.Chart.events({
                let minDate = DataCollection.findOne({},{sort: {t: 1}}).t;
                console.log("Min: "+minDate);
                // use math and a for loop to figure out the mean
+
                let data =DataCollection.find().fetch();
                // add all up, then divide by total
                let add = 0;
@@ -148,17 +150,6 @@ Template.Chart.events({
                let dataMean = add/(DataCollection.find().count());
                console.log("mean: "+dataMean);
 
-               let meanDataPoints = [{
-                   t: minDate,
-                   y: dataMean
-               }, {
-                   t: maxDate,
-                   y: dataMean
-               }];
-
-
-
-
                let meanDataObject = {
                    label: "median",
                    backgroundColor: 'transparent',
@@ -166,9 +157,73 @@ Template.Chart.events({
                    borderWidth: 2,
                    // pointBackgroundColor: 'black',
                    pointStyle: 'line',
-                   data: meanDataPoints // from above
+                   data: [{
+                       t: minDate,
+                       y: dataMean
+                   }, {
+                       t: maxDate,
+                       y: dataMean
+                   }]
                };
 
+                // Todo: calculate UCL and LCL, and chart those too!
+
+               // UCL is mean + 3* stDev. We already have the mean. Let's calculate stDev!
+               /*
+                Steps:
+                    1. get the average value of the data set
+                        = dataMean from above
+                    2. calculate the difference between each value in the set and the average
+                    3. then square the result of each difference
+                           ...again we can do this in a for loop:       */
+                    let diffSum = 0;
+                   for (let x in data){
+                        diffSum += (dataMean - data[x].y)*(dataMean -data[x].y)  // adding the squared differences
+                   }
+
+
+               //     4. average the squared differences
+                    let diffAverage = diffSum/DataCollection.find().count();
+               //     5. get the square root of the average squared difference
+                    let dataStDev = Math.sqrt(diffAverage);
+
+                    let dataUCL = dataMean + (3 * dataStDev);
+                    let dataLCL = dataMean - (3 * dataStDev);
+
+                    // now let's build the UCL and LCL data points:
+
+
+               let LowerLimitDataObject = {
+                   label: "LCL",
+                   backgroundColor: 'transparent',
+                   borderColor: 'red',
+                   borderWidth: 2,
+                   // pointBackgroundColor: 'black',
+                   pointStyle: 'line',
+                   data: [{
+                       t: minDate,
+                       y: dataLCL
+                   }, {
+                       t: maxDate,
+                       y: dataLCL
+                   }] // from above
+           };
+
+               let UpperLimitDataObject = {
+                   label: "UCL",
+                   backgroundColor: 'transparent',
+                   borderColor: 'red',
+                   borderWidth: 2,
+                   // pointBackgroundColor: 'black',
+                   pointStyle: 'line',
+                   data: [{
+                       t: minDate,
+                       y: dataUCL
+                   }, {
+                       t: maxDate,
+                       y: dataUCL
+                   }] // from above
+               };
 
                // Almost there- we need to insert this object into our datasets array.
                 // first, remove old datasets
@@ -176,6 +231,8 @@ Template.Chart.events({
 
                MyChart.config.data.datasets.push(variableData);
                MyChart.config.data.datasets.push(meanDataObject);
+               MyChart.config.data.datasets.push(UpperLimitDataObject);
+               MyChart.config.data.datasets.push(LowerLimitDataObject);
                console.log(MyChart);
                MyChart.update();
            }
