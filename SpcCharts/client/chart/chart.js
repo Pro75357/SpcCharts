@@ -4,7 +4,194 @@ import { Mongo } from 'meteor/mongo';
 export const DataCollection = new Mongo.Collection(null);
 
 Template.Chart.onRendered( function(){
+    initChart();
+});
 
+Template.Chart.events({
+    'click #generateButton': function(ev){
+        DataCollection.remove({});
+        generateRandomData();
+    },
+
+   'change #file': function(event){
+       DataCollection.remove({});
+       parseFile(event.target.files[0]);
+   }
+});
+
+Template.Chart.helpers({
+    chartData(){
+        return JSON.stringify(DataCollection.find({}).fetch(), null, 2);
+    }
+});
+
+// page-wide functions go here (lots of things!)
+
+function parseFile(file){
+    // parses the passed file and inserts data into local mongo collection
+    Papa.parse(file, {
+        dynamicTyping: true,
+        header: true,
+        complete(results) {
+            for (let x in results.data) {
+                if (results.data[x].values) {
+                    let value = {
+                        date: results.data[x].date,
+                        values: results.data[x].values
+                    };
+                    // store this in our Mongo collection
+                   // console.log(value)
+                    DataCollection.insert(value)
+                }
+            }// when this is done, go ahead and update the chart
+            updateChart();
+        }
+    })
+}
+
+function generateRandomData () {
+    // generates somewhat random data for pretty chart display
+    let total = 14 + Math.random()*45;
+    let number = total * Math.random()*50;
+    for (total; total > 0; total--) {
+        let value = {
+            date: moment().subtract(total,'day')._d,
+            values: Math.round(number * Math.random())
+        };
+        // we will both store results in our initial chartData
+        // as well as our Mongo collection
+        DataCollection.insert(value)
+    }
+    updateChart()
+}
+
+function updateChart(){
+    let data= DataCollection.find({},{sort: {date: -1}}).fetch();
+
+    let chartData = [];
+    for (let x in data) {
+        chartData.push({
+            t: data[x].date,
+            y: data[x].values
+        })
+    }
+    let variableData = {
+        label: 'data',
+        backgroundColor: 'transparent',
+        borderColor: 'blue',
+        borderWidth: 1,
+        // pointBackgroundColor: 'black',
+        pointStyle: 'cross',
+        cubicInterpolationMode: 'monotone',
+        data: chartData // from above
+    };
+
+    // Now, we need to calculate a mean and graph this as a straight line down the middle:
+    // to do this, we can chart the value on both the max and min date
+    let maxDate = DataCollection.findOne({},{sort: {date: -1}}).date;
+  //  console.log("max: "+maxDate);
+    let minDate = DataCollection.findOne({},{sort: {date: 1}}).date;
+   // console.log("Min: "+minDate);
+    // use math and a for loop to figure out the mean
+
+
+    // add all up, then divide by total
+    let add = 0;
+    for (let x in data) {
+        add += data[x].values
+    }
+    // total is just the size of the array
+    let dataMean = add/(DataCollection.find().count());
+ //   console.log("mean: "+dataMean);
+
+    let meanDataObject = {
+        label: "median",
+        backgroundColor: 'transparent',
+        borderColor: 'grey',
+        borderWidth: 2,
+        // pointBackgroundColor: 'black',
+        pointStyle: 'line',
+        data: [{
+            t: minDate,
+            y: dataMean
+        }, {
+            t: maxDate,
+            y: dataMean
+        }]
+    };
+
+    // Todo: calculate UCL and LCL, and chart those too!
+
+    // UCL is mean + 3* stDev. We already have the mean. Let's calculate stDev!
+    /*
+     Steps:
+         1. get the average value of the data set
+             = dataMean from above
+         2. calculate the difference between each value in the set and the average
+         3. then square the result of each difference
+                ...again we can do this in a for loop:       */
+    let diffSum = 0;
+    for (let x in data){
+        diffSum += (dataMean - data[x].values)*(dataMean -data[x].values)  // adding the squared differences
+    }
+
+
+    //     4. average the squared differences
+    let diffAverage = diffSum/DataCollection.find().count();
+    //     5. get the square root of the average squared difference
+    let dataStDev = Math.sqrt(diffAverage);
+
+    let dataUCL = dataMean + (3 * dataStDev);
+    let dataLCL = dataMean - (3 * dataStDev);
+
+    // now let's build the UCL and LCL data points:
+
+
+    let LowerLimitDataObject = {
+        label: "LCL",
+        backgroundColor: 'transparent',
+        borderColor: 'red',
+        borderWidth: 2,
+        // pointBackgroundColor: 'black',
+        pointStyle: 'line',
+        data: [{
+            t: minDate,
+            y: dataLCL
+        }, {
+            t: maxDate,
+            y: dataLCL
+        }] // from above
+    };
+
+    let UpperLimitDataObject = {
+        label: "UCL",
+        backgroundColor: 'transparent',
+        borderColor: 'red',
+        borderWidth: 2,
+        // pointBackgroundColor: 'black',
+        pointStyle: 'line',
+        data: [{
+            t: minDate,
+            y: dataUCL
+        }, {
+            t: maxDate,
+            y: dataUCL
+        }] // from above
+    };
+
+    // Almost there- we need to insert this object into our datasets array.
+    // first, remove old datasets
+    MyChart.config.data.datasets = [];
+
+    MyChart.config.data.datasets.push(variableData);
+    MyChart.config.data.datasets.push(meanDataObject);
+    MyChart.config.data.datasets.push(UpperLimitDataObject);
+    MyChart.config.data.datasets.push(LowerLimitDataObject);
+   // console.log(MyChart);
+    MyChart.update();
+}
+
+function initChart(){
 
     // Just build a simple chart on rendering for display, also builds our chart object
     let canvas = document.getElementById('chartCanvas').getContext("2d");
@@ -91,159 +278,5 @@ Template.Chart.onRendered( function(){
 
     // and now we can actually build the chart!
 
-    export const MyChart = new Chart(canvas, config);
-
-});
-
-Template.Chart.events({
-   'change #file': function(event){
-       event.preventDefault();
-        import { MyChart } from './chart.js'
-       DataCollection.remove({})
-       Papa.parse(event.target.files[0], {
-           dynamicTyping: true,
-           header: true,
-           complete(results) {
-
-               // update chart with new data
-               //console.log(results);
-               let chartData = [] ;
-               for (let x in results.data){
-                   if (results.data[x].values) {
-                       let value = {
-                           t: results.data[x].date,
-                           y: results.data[x].values
-                       };
-                       // we will both store results in our initial chartData
-                       chartData.push(value);
-                       // as well as our Mongo collection
-                       DataCollection.insert(value)
-
-                   }
-               }
-
-               let variableData = {
-                    label: 'data',
-                   backgroundColor: 'transparent',
-                   borderColor: 'blue',
-                   borderWidth: 1,
-                   // pointBackgroundColor: 'black',
-                   pointStyle: 'cross',
-                   data: chartData // from above
-               };
-
-               // Now, we need to calculate a mean and graph this as a straight line down the middle:
-               // to do this, we can chart the value on both the max and min date
-               let maxDate = DataCollection.findOne({},{sort: {t: -1}}).t;
-               console.log("max: "+maxDate);
-               let minDate = DataCollection.findOne({},{sort: {t: 1}}).t;
-               console.log("Min: "+minDate);
-               // use math and a for loop to figure out the mean
-
-               let data =DataCollection.find().fetch();
-               // add all up, then divide by total
-               let add = 0;
-               for (let x in data) {
-                   add += data[x].y
-               }
-               // total is just the size of the array
-               let dataMean = add/(DataCollection.find().count());
-               console.log("mean: "+dataMean);
-
-               let meanDataObject = {
-                   label: "median",
-                   backgroundColor: 'transparent',
-                   borderColor: 'grey',
-                   borderWidth: 2,
-                   // pointBackgroundColor: 'black',
-                   pointStyle: 'line',
-                   data: [{
-                       t: minDate,
-                       y: dataMean
-                   }, {
-                       t: maxDate,
-                       y: dataMean
-                   }]
-               };
-
-                // Todo: calculate UCL and LCL, and chart those too!
-
-               // UCL is mean + 3* stDev. We already have the mean. Let's calculate stDev!
-               /*
-                Steps:
-                    1. get the average value of the data set
-                        = dataMean from above
-                    2. calculate the difference between each value in the set and the average
-                    3. then square the result of each difference
-                           ...again we can do this in a for loop:       */
-                    let diffSum = 0;
-                   for (let x in data){
-                        diffSum += (dataMean - data[x].y)*(dataMean -data[x].y)  // adding the squared differences
-                   }
-
-
-               //     4. average the squared differences
-                    let diffAverage = diffSum/DataCollection.find().count();
-               //     5. get the square root of the average squared difference
-                    let dataStDev = Math.sqrt(diffAverage);
-
-                    let dataUCL = dataMean + (3 * dataStDev);
-                    let dataLCL = dataMean - (3 * dataStDev);
-
-                    // now let's build the UCL and LCL data points:
-
-
-               let LowerLimitDataObject = {
-                   label: "LCL",
-                   backgroundColor: 'transparent',
-                   borderColor: 'red',
-                   borderWidth: 2,
-                   // pointBackgroundColor: 'black',
-                   pointStyle: 'line',
-                   data: [{
-                       t: minDate,
-                       y: dataLCL
-                   }, {
-                       t: maxDate,
-                       y: dataLCL
-                   }] // from above
-           };
-
-               let UpperLimitDataObject = {
-                   label: "UCL",
-                   backgroundColor: 'transparent',
-                   borderColor: 'red',
-                   borderWidth: 2,
-                   // pointBackgroundColor: 'black',
-                   pointStyle: 'line',
-                   data: [{
-                       t: minDate,
-                       y: dataUCL
-                   }, {
-                       t: maxDate,
-                       y: dataUCL
-                   }] // from above
-               };
-
-               // Almost there- we need to insert this object into our datasets array.
-                // first, remove old datasets
-                MyChart.config.data.datasets = [];
-
-               MyChart.config.data.datasets.push(variableData);
-               MyChart.config.data.datasets.push(meanDataObject);
-               MyChart.config.data.datasets.push(UpperLimitDataObject);
-               MyChart.config.data.datasets.push(LowerLimitDataObject);
-               console.log(MyChart);
-               MyChart.update();
-           }
-       });
-
-
-   }
-});
-
-Template.Chart.helpers({
-    chartData(){
-        return JSON.stringify(DataCollection.find().fetch(), null, 2);
-    }
-})
+    MyChart = new Chart(canvas, config);
+}
