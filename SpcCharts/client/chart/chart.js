@@ -68,24 +68,6 @@ function generateRandomData () {
 function updateChart(){
     let data= DataCollection.find({},{sort: {date: -1}}).fetch();
 
-    let chartData = [];
-    for (let x in data) {
-        chartData.push({
-            t: data[x].date,
-            y: data[x].values
-        })
-    }
-    let variableData = {
-        label: 'data',
-        backgroundColor: 'transparent',
-        borderColor: 'blue',
-        borderWidth: 1,
-        // pointBackgroundColor: 'black',
-        pointStyle: 'cross',
-        cubicInterpolationMode: 'monotone',
-        data: chartData // from above
-    };
-
     // Now, we need to calculate a mean and graph this as a straight line down the middle:
     // to do this, we can chart the value on both the max and min date
     let maxDate = DataCollection.findOne({},{sort: {date: -1}}).date;
@@ -179,6 +161,43 @@ function updateChart(){
         }] // from above
     };
 
+
+    let chartData = [];
+    let pointColors = [];
+
+    for (let x in data) {
+        // insert chart data
+        chartData.push({
+            t: data[x].date,
+            y: data[x].values
+        });
+
+        // set colors based on whatever logic
+        let color = 'blue'; // default color
+
+        if (data[x].values > dataMean ) {
+            color = 'red'
+        }
+        pointColors.push(color)
+
+    }
+
+
+    let variableData = {
+        label: 'data',
+        backgroundColor: 'transparent',
+        borderColor: 'blue',
+        borderWidth: 1,
+        pointStyle: 'sphere',
+        pointRadius: 5,
+        pointBorderColor: 'transparent',
+        // pointBackgroundColor: 'black',
+        cubicInterpolationMode: 'monotone',
+        data: chartData, // from above
+        pointBackgroundColor: pointColors
+    };
+
+
     // Almost there- we need to insert this object into our datasets array.
     // first, remove old datasets
     MyChart.config.data.datasets = [];
@@ -198,26 +217,49 @@ function initChart(){
 
     let datasets = [];
     let chartData = [] ;
+    let pointColors = [];
 
-    let values = [12,2,4,3,5];
+    let i=1;
+    let values = [];
+    for (i; i<20; i++){
+        values.push(Math.sin(i))
+    }
+
+    let dateAdd=1;
     for (let x in values){
         let value = {
-            t: moment(new Date()).subtract(values[x],'day')._d,
-            y: values[x]
+            t: moment(new Date()).subtract(dateAdd,'day')._d,
+            y: values[x],
         };
+        dateAdd+=1;
 
         chartData.push(value);
+
+        //Set default chart color:
+        let color = 'blue';
+
+        // pick color based on value
+        if (value.y > 0) {
+            color = 'red';
+        }
+
+        // put into dataset
+        pointColors.push(color)
+
+        //chartData.push({backgroundColor: 'yellow'})
         // console.log(value)
     }
 
     let datasetObject = {
         // label: 'Weights',
         backgroundColor: 'transparent',
-        borderColor: 'blue',
+        borderColor: 'black',
         borderWidth: 1,
-        // pointBackgroundColor: 'black',
-        pointStyle: 'cross',
-        data: chartData // from above
+        pointBorderColor: 'transparent',
+        pointStyle: 'sphere',
+        pointRadius: 5,
+        data: chartData, // from above
+        pointBackgroundColor: pointColors
     };
 
     // Almost there- we need to insert this object into our datasets array.
@@ -278,5 +320,5 @@ function initChart(){
 
     // and now we can actually build the chart!
 
-    MyChart = new Chart(canvas, config);
+   MyChart = new Chart(canvas, config);
 }
