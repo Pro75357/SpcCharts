@@ -51,12 +51,22 @@ function parseFile(file){
 
 function generateRandomData () {
     // generates somewhat random data for pretty chart display
-    let total = 14 + Math.random()*45;
-    let number = total * Math.random()*50;
+    let total = 60;
+  //  let number = total * Math.random()*50;
     for (total; total > 0; total--) {
+        // generate a gaussian data distribution
+        let x1, x2, rad;
+        do {
+            x1 = 2 * Math.random() - 1;
+            x2 = 2 * Math.random() - 1;
+            rad = x1 * x1 + x2 * x2;
+        } while(rad >= 1 || rad === 0);
+        let c = Math.sqrt(-2 * Math.log(rad) / rad);
+        //return x1 * c;
+
         let value = {
             date: moment().subtract(total,'day')._d,
-            values: Math.round(number * Math.random())
+            values: x1 * c * Math.random() * 100
         };
         // we will both store results in our initial chartData
         // as well as our Mongo collection
