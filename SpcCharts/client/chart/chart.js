@@ -22,7 +22,16 @@ Template.Chart.events({
 Template.Chart.helpers({
     chartData(){
         return JSON.stringify(DataCollection.find({}).fetch(), null, 2);
+    },
+    dateExample(){
+        return moment().format('YYYY-MM-DD HH:MM')
+    },
+    resultCount(){
+        if (DataCollection.find().count() > 0){
+            return DataCollection.find().count()
+        }
     }
+
 });
 
 // page-wide functions go here (lots of things!)
@@ -37,7 +46,7 @@ function parseFile(file){
                 if (results.data[x].values) {
                     let value = {
                         date: results.data[x].date,
-                        values: results.data[x].values
+                        values: parseFloat(results.data[x].values)
                     };
                     // store this in our Mongo collection
                    // console.log(value)
@@ -87,14 +96,20 @@ function updateChart(){
    // console.log("Min: "+minDate);
     // use math and a for loop to figure out the mean
 
+    //console.log(minDate+" - "+maxDate);
 
     // add all up, then divide by total
     let add = 0;
     for (let x in data) {
         add += data[x].values
     }
+   // console.log(add);
     // total is just the size of the array
     let dataMean = add/(DataCollection.find().count());
+    // this ends up with a long decimal place
+    // let's get it to two
+    dataMean = Math.round(dataMean * 100)/100;
+
  //   console.log("mean: "+dataMean);
 
     let meanDataObject = {
@@ -113,7 +128,6 @@ function updateChart(){
         }]
     };
 
-    // Todo: calculate UCL and LCL, and chart those too!
 
     // UCL is mean + 3* stDev. We already have the mean. Let's calculate stDev!
     /*
@@ -133,10 +147,11 @@ function updateChart(){
     let diffAverage = diffSum/DataCollection.find().count();
     //     5. get the square root of the average squared difference
     let dataStDev = Math.sqrt(diffAverage);
+    //dataStDev = Math.round(dataStDev * 100)/100;
 
-    let dataUCL = Math.round(dataMean + (3 * dataStDev));
-    let dataLCL = Math.round(dataMean - (3 * dataStDev));
-
+    let dataUCL = Math.round((dataMean + (3 * dataStDev))*100)/100;
+    let dataLCL = Math.round((dataMean - (3 * dataStDev))*100)/100;
+   // console.log(Math.round(dataMean)+ " " + dataUCL)
     // now let's build the UCL and LCL data points:
 
 
