@@ -62,11 +62,12 @@ function generateRandomData () {
             rad = x1 * x1 + x2 * x2;
         } while(rad >= 1 || rad === 0);
         let c = Math.sqrt(-2 * Math.log(rad) / rad);
-        //return x1 * c;
+        let gRand = x1 * c;
 
+        let normalizer = 50 + Math.random() * 25;
         let value = {
-            date: moment().subtract(total,'day')._d,
-            values: x1 * c * Math.random() * 100
+            date: moment().subtract(total,'week')._d,
+            values: Math.round((gRand * normalizer) + normalizer)
         };
         // we will both store results in our initial chartData
         // as well as our Mongo collection
@@ -133,8 +134,8 @@ function updateChart(){
     //     5. get the square root of the average squared difference
     let dataStDev = Math.sqrt(diffAverage);
 
-    let dataUCL = dataMean + (3 * dataStDev);
-    let dataLCL = dataMean - (3 * dataStDev);
+    let dataUCL = Math.round(dataMean + (3 * dataStDev));
+    let dataLCL = Math.round(dataMean - (3 * dataStDev));
 
     // now let's build the UCL and LCL data points:
 
@@ -183,10 +184,14 @@ function updateChart(){
         });
 
         // set colors based on whatever logic
-        let color = 'blue'; // default color
+        let color = 'black'; // default color
 
-        if (data[x].values > dataMean ) {
+        if (data[x].values > dataUCL ) {
             color = 'red'
+        }
+
+        if (data[x].values < dataLCL) {
+            color = 'blue';
         }
         pointColors.push(color)
 
@@ -199,7 +204,7 @@ function updateChart(){
         borderColor: 'blue',
         borderWidth: 1,
         pointStyle: 'sphere',
-        pointRadius: 5,
+        pointRadius: 4,
         pointBorderColor: 'transparent',
         // pointBackgroundColor: 'black',
         cubicInterpolationMode: 'monotone',
@@ -235,6 +240,7 @@ function initChart(){
         values.push(Math.sin(i))
     }
 
+    // paint the data points per some math
     let dateAdd=1;
     for (let x in values){
         let value = {
