@@ -1,7 +1,7 @@
 <template name="Chart">
     <div class="row">
         <div class="col-sm-3">
-            <h5>Upload 2-column CSV file with headers "date" and "values"</h5>
+            <h5>Upload a CSV file with a date column and numerical data</h5>
             Dates should be in <a href="https://momentjs.com/docs/#/parsing/string/" target="_blank">known ISO 8601</a> format <b>({{dateExample}})</b> <br/>
             <label class="btn btn-primary btn-file">
                 Browse <input type="file" id="file" style="display: none;">
@@ -9,7 +9,22 @@
             <div>
                 {{#if resultCount}}
                     {{resultCount}} items loaded
+                    <br/>
                 {{/if}}
+                    X (Date) axis:
+                    <select id="xAxis">
+                        {{#each field in columns}}
+                            <option value="{{field}}">{{field}}</option>
+                        {{/each}}
+                    </select>
+                    <br/>
+                    Y axis:
+                    <select id="yAxis">
+                        {{#each field in columns}}
+                            <option value="{{field}}">{{field}}</option>
+                        {{/each}}
+                    </select>
+
             </div>
             <h5>Else just show some fake data:</h5>
             <button class="btn btn-success" id="generateButton">Go</button>
@@ -20,7 +35,7 @@
             <canvas id="chartCanvas" height="400" width="800"></canvas>
         </div>
     </div>
-    <pre class="collapse">{{chartData}}</pre>
+    <pre>{{chartData}}</pre>
 
 </template>
 
